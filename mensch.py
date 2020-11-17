@@ -25,26 +25,21 @@ class MenschAergereDichNicht:
                 print("")
                 print("Players", player.id+1, "Turn")
                 if player.has_piece_outside():
-                    dice = self.roll_dice()
+                    dice = player.roll_dice()
                     player.move(dice)
                 else:
                     # 3mal würfeln
                     for i in range(0, 3):
                         print("Roll", i+1)
-                        if self.roll_dice() == 6:
-                            print("success")
-                            player.place_piece_outside()
-                            player.get_piece_on_start().go_forward(self.roll_dice())
+                        dice = player.roll_dice()
+                        if dice == 6:
+                            player.move(dice)
                             break
-                if player.has_won():
-                    print ("Game Over")
-                    print ("Player", player.id+1, "has won")
-                    return
 
-    def roll_dice(self):
-        dice = random.randint(1, 6)
-        print("Rolling dice:", dice)
-        return dice
+                if player.has_won():
+                    print("Game Over")
+                    print("Player", player.id+1, "has won")
+                    return
 
     # set pieces on position back to the start
     def seek_and_destroy(self, position):
@@ -120,27 +115,39 @@ class Player:
             if piece.position < 40:
                 won = False
         return won
-    
-    # todo: implement multiple 6 correctly
+
     def move(self, dice):
         print("Player", self.id+1, "Positions:", self.get_piece_positions())
+        # spieler hat eine 6 gewürfelt
         if dice == 6:
-            if self.has_piece_inside():
+            # bonus roll
+            next_dice = self.roll_dice()
+            if not self.has_piece_outside():
+                self.place_piece_outside()
+                self.get_piece_on_start().go_forward(next_dice)
+            elif self.has_piece_inside():
                 i = input("Move Piece onto playfield? (y/n)")
                 if i == "y":
                     self.place_piece_outside()
                     if self.has_piece_inside():
-                        self.get_piece_on_start().go_forward(self.parent.roll_dice())
-                        return
+                        # has to move from start
+                        self.get_piece_on_start().go_forward(next_dice)
                 else:
-                    self.move_freely(dice)
-                self.move(self.parent.roll_dice())
+                    self.move_freely(next_dice)
+            # repeat everything if another 6
+            if next_dice == 6:
+                self.move(next_dice)
         else:
             self.move_freely(dice)
 
     def move_freely(self, dice):
         i = int(input("Select Piece: "))
         self.pieces[i-1].go_forward(dice)
+
+    def roll_dice(self):
+        dice = random.randint(1, 6)
+        print("Rolling dice:", dice)
+        return dice
 
 
 class Piece:
