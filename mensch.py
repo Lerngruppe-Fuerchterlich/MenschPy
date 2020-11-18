@@ -1,6 +1,11 @@
 # Mensch Ärgere Dich Nicht!
 # created on 17.11.2020 by JPW
 
+# todo:
+# -Rausschmeissen
+# -Ziel anordnung wichtig
+# -Keine zwei eigene Figuren auf einem Feld stehen lassen
+
 import random
 
 
@@ -24,28 +29,19 @@ class MenschAergereDichNicht:
             for player in self.players:
                 print("")
                 print("Players", player.id+1, "Turn")
-                if player.has_piece_outside():
-                    dice = player.roll_dice()
-                    player.move(dice)
-                else:
-                    # 3mal würfeln
-                    for i in range(0, 3):
-                        print("Roll", i+1)
-                        dice = player.roll_dice()
-                        if dice == 6:
-                            player.move(dice)
-                            break
+
+                player.turn()
 
                 if player.has_won():
                     print("Game Over")
                     print("Player", player.id+1, "has won")
                     return
 
-    # set pieces on position back to the start
+    # todo: move to player class (only kick other players out...)
     def seek_and_destroy(self, position):
         for player in self.players:
             for piece in player.pieces:
-                if piece.position == position+player.offset:
+                if piece.position < 40 and piece.position != -1 and piece.position == position+player.offset:
                     print("Kicking out Player", player.id)
                     piece.position = -1
 
@@ -58,7 +54,7 @@ class Player:
         self.parent = parent
 
         for x in range(0,4):
-            self.pieces.append(Piece())
+            self.pieces.append(Piece(self))
 
     # true if one (or more) pieces is on the playfield
     def has_piece_outside(self):
@@ -116,29 +112,39 @@ class Player:
                 won = False
         return won
 
-    def move(self, dice):
+    def turn(self):
         print("Player", self.id+1, "Positions:", self.get_piece_positions())
-        # spieler hat eine 6 gewürfelt
-        if dice == 6:
-            # bonus roll
-            next_dice = self.roll_dice()
-            if not self.has_piece_outside():
-                self.place_piece_outside()
-                self.get_piece_on_start().go_forward(next_dice)
-            elif self.has_piece_inside():
-                i = input("Move Piece onto playfield? (y/n)")
-                if i == "y":
-                    self.place_piece_outside()
-                    if self.has_piece_inside():
-                        # has to move from start
-                        self.get_piece_on_start().go_forward(next_dice)
-                else:
-                    self.move_freely(next_dice)
-            # repeat everything if another 6
-            if next_dice == 6:
-                self.move(next_dice)
+        print("Player", self.id+1, "REAL Positions:", self.get_piece_positions_offset())
+
+        if self.has_piece_outside():
+            # normal game
+            dice = self.roll_dice()
+            if dice == 6:
+                # bonus roll
+                next_dice = self.roll_dice()
+                if self.has_piece_inside():
+                    i = input("Move Piece onto playfield? (y/n)")
+                    if i == "y":
+                        self.place_piece_outside()
+                        if self.has_piece_inside():
+                            # has to move from start
+                            self.get_piece_on_start().go_forward(next_dice)
+                    else:
+                        self.move_freely(next_dice)
+                if next_dice == 6:
+                    # repeat
+                    self.turn()
+            else:
+                self.move_freely(dice)
         else:
-            self.move_freely(dice)
+            # special case: roll 3 times
+            for i in range(0, 3):
+                print("Roll", i+1)
+                dice = self.roll_dice()
+                if dice == 6:
+                    self.place_piece_outside()
+                    self.get_piece_on_start().go_forward(self.roll_dice())
+                    break
 
     def move_freely(self, dice):
         i = int(input("Select Piece: "))
@@ -151,12 +157,25 @@ class Player:
 
 
 class Piece:
-    def __init__(self):
+    def __init__(self, parent):
         self.position = -1
+        self.parent = parent
 
     def go_forward(self, distance):
-        self.position += distance
-        print("Moving piece to", self.position)
+        new_position = self.position + distance
+
+        # kicking logic
+        # WIP
+        # self.parent.parent.seek_and_destroy(new_position)
+
+        # if feldbelegt:
+            # if eigene figur:
+                # fehler/verbotener zug
+            # else
+                # rausschmeissen
+
+        self.position = new_position
+        print("Moving piece to", self.position, "real position:", self.position + self.parent.offset)
 
 
 
