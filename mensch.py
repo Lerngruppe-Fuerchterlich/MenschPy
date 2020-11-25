@@ -1,18 +1,13 @@
 # Mensch Ärgere Dich Nicht!
 # created on 17.11.2020 by JPW
 
-# todo:
-# -Rausschmeissen
-# -Ziel anordnung wichtig
-# -Keine zwei eigene Figuren auf einem Feld stehen lassen
-
 import random
 import time
 
 
 class MenschAergereDichNicht:
     # Class attribute
-    version = "0.1"
+    version = "1.0"
 
     # Game
     def __init__(self, number_of_players):
