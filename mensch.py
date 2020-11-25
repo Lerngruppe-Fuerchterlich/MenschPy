@@ -7,6 +7,7 @@
 # -Keine zwei eigene Figuren auf einem Feld stehen lassen
 
 import random
+import time
 
 
 class MenschAergereDichNicht:
@@ -36,14 +37,6 @@ class MenschAergereDichNicht:
                     print("Game Over")
                     print("Player", player.id+1, "has won")
                     return
-
-    # todo: move to player class (only kick other players out...)
-    def seek_and_destroy(self, position):
-        for player in self.players:
-            for piece in player.pieces:
-                if piece.position < 40 and piece.position != -1 and piece.position == position+player.offset:
-                    print("Kicking out Player", player.id)
-                    piece.position = -1
 
 
 class Player:
@@ -148,12 +141,33 @@ class Player:
 
     def move_freely(self, dice):
         i = int(input("Select Piece: "))
-        self.pieces[i-1].go_forward(dice)
+        if self.pieces[i-1].position != -1:
+            if self.is_field_free(self.pieces[i-1].position+dice):
+                self.pieces[i-1].go_forward(dice)
+        else:
+            print("Select a piece on the gamefield!")
+            self.move_freely(dice)
 
     def roll_dice(self):
         dice = random.randint(1, 6)
         print("Rolling dice:", dice)
         return dice
+
+    # check if field is free and kick other players if needed
+    def is_field_free(self, position):
+        free = True
+        for player in self.parent.players:
+            if player.id != self.id:
+                for piece in player.pieces:
+                    if piece.position < 40 and piece.position != -1 and piece.position == position+player.offset:
+                        print("Kicking out Player", player.id)
+                        piece.position = -1
+            if player.id == self.id:
+                for piece in player.pieces:
+                    if piece.position == position + player.offset:
+                        print("Field is not free")
+                        free = False
+        return free
 
 
 class Piece:
