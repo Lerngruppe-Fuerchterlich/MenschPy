@@ -49,7 +49,7 @@ class Player:
         for x in range(0,4):
             self.pieces.append(Piece(self))
 
-    # true if one (or more) pieces is on the playfield
+    # true if one (or more) pieces is on the board
     def has_piece_outside(self):
         result = False
         for piece in self.pieces:
@@ -73,7 +73,7 @@ class Player:
             if piece.position == -1:
                 positions.append("Start")
             else:
-                positions.append(piece.position+self.offset)
+                positions.append(piece.get_realposition())
         return positions
 
     def get_piece_positions(self):
@@ -85,12 +85,14 @@ class Player:
                 positions.append(piece.position)
         return positions
 
-    # move piece from start area to playfield
+    # move piece from start area to board
     def place_piece_outside(self):
         for piece in self.pieces:
             if piece.position == -1:
-                piece.position = 0
-                return
+                # kick other players from the start point
+                if self.is_field_free(self.offset):
+                    piece.position = 0
+                    return
         print("ERROR: player has no piece in start area")
     
     def get_piece_on_start(self):
@@ -116,13 +118,14 @@ class Player:
                 # bonus roll
                 next_dice = self.roll_dice()
                 if self.has_piece_inside():
-                    i = input("Move Piece onto playfield? (y/n)")
-                    if i == "y":
+                    i = input("Move Piece from home to board? (y/n)")
+                    if i != "n":
                         self.place_piece_outside()
                         if self.has_piece_inside():
                             # has to move from start
                             self.get_piece_on_start().go_forward(next_dice)
                     else:
+                        self.move_freely(dice)
                         self.move_freely(next_dice)
                 if next_dice == 6:
                     # repeat
@@ -135,17 +138,24 @@ class Player:
                 print("Roll", i+1)
                 dice = self.roll_dice()
                 if dice == 6:
+                    next_dice = self.roll_dice()
                     self.place_piece_outside()
-                    self.get_piece_on_start().go_forward(self.roll_dice())
+                    self.get_piece_on_start().go_forward(next_dice)
+                    if next_dice == 6:
+                        self.turn()
                     break
 
     def move_freely(self, dice):
         i = int(input("Select Piece: "))
         if self.pieces[i-1].position != -1:
-            if self.is_field_free(self.pieces[i-1].position+dice):
+            if self.is_field_free(self.pieces[i-1].position+dice+self.offset):
                 self.pieces[i-1].go_forward(dice)
+            else:
+                pass
+                # todo: Spieler auffordern andere Figur zu nehmen
+                # was ist wenn das nicht möglich ist..?
         else:
-            print("Select a piece on the gamefield!")
+            print("Select a piece on the board!")
             self.move_freely(dice)
 
     def roll_dice(self):
@@ -154,18 +164,18 @@ class Player:
         return dice
 
     # check if field is free and kick other players if needed
-    def is_field_free(self, position):
+    def is_field_free(self, realposition):
         free = True
         for player in self.parent.players:
             if player.id != self.id:
                 for piece in player.pieces:
-                    if piece.position < 40 and piece.position != -1 and piece.position == position+player.offset:
+                    if piece.position < 40 and piece.position != -1 and piece.position + player.offset == realposition:
                         print("Kicking out Player", player.id)
                         piece.position = -1
-            if player.id == self.id:
+            else:
                 for piece in player.pieces:
-                    if piece.position == position + player.offset:
-                        print("Field is not free")
+                    if piece.position + player.offset == realposition or realposition - player.offset > 43:
+                        print("Field is not free or outside the board")
                         free = False
         return free
 
@@ -177,20 +187,21 @@ class Piece:
 
     def go_forward(self, distance):
         new_position = self.position + distance
-
-        # kicking logic
-        # WIP
-        # self.parent.parent.seek_and_destroy(new_position)
-
-        # if feldbelegt:
-            # if eigene figur:
-                # fehler/verbotener zug
-            # else
-                # rausschmeissen
-
+        print("Moving piece from", self.position, "to", new_position)
         self.position = new_position
-        print("Moving piece to", self.position, "real position:", self.position + self.parent.offset)
-
+        print("Real new position:", self.get_realposition())
+        
+    
+    # get the real position of the piece on the board! implementing wrap around
+    def get_realposition(self):
+        boardsize = self.parent.parent.number_of_players*10
+        if self.parent.offset != 0:
+            if self.position >= (boardsize-self.parent.offset):
+                return self.position - (boardsize-self.parent.offset)
+            else:
+                return self.position + self.parent.offset
+        else:
+            return self.position
 
 
 if __name__ == "__main__":
