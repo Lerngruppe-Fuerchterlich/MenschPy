@@ -4,6 +4,9 @@
 import random
 import time
 
+# TODO: Ziel abfrage überarbeiten
+# TODO: class diagram
+
 
 class MenschAergereDichNicht:
     # Class attribute
@@ -36,10 +39,10 @@ class MenschAergereDichNicht:
 
 class Player:
     def __init__(self, parent, offset, id):
+        self.parent = parent
         self.offset = offset
         self.pieces = []
         self.id = id
-        self.parent = parent
 
         for x in range(0,4):
             self.pieces.append(Piece(self))
@@ -48,7 +51,7 @@ class Player:
     def has_piece_outside(self):
         result = False
         for piece in self.pieces:
-            # todo: add check if piece is in the finish and cant move (to grant the player 3 dice rolls)
+            # TODO: add check if piece is in the finish and cant move (to grant the player 3 dice rolls)
             if piece.position != -1:
                 result = True
         return result
@@ -65,10 +68,9 @@ class Player:
     def get_piece_positions_offset(self):
         positions = []
         for piece in self.pieces:
-            if piece.position == -1:
-                positions.append("Start")
-            else:
-                positions.append(piece.get_realposition())
+            # old:
+            # positions.append(piece.get_realposition())
+            positions.append(self.calculate_realposition(piece, 0))
         return positions
 
     def get_piece_positions(self):
@@ -89,12 +91,13 @@ class Player:
                     piece.position = 0
                     return
         print("ERROR: player has no piece in start area")
-    
+
     def get_piece_on_start(self):
         for piece in self.pieces:
             if piece.position == 0:
                 return piece
-    
+        return False
+
     def has_won(self):
         won = True
         for piece in self.pieces:
@@ -106,6 +109,7 @@ class Player:
         print("Player", self.id+1, "Positions:", self.get_piece_positions())
         print("Player", self.id+1, "REAL Positions:", self.get_piece_positions_offset())
 
+        piece_on_start = self.get_piece_on_start()
         if self.has_piece_outside():
             # normal game
             dice = self.roll_dice()
@@ -113,15 +117,27 @@ class Player:
                 # bonus roll
                 next_dice = self.roll_dice()
                 if self.has_piece_inside():
-                    i = input("Move Piece from home to board? (y/n)")
-                    if i != "n":
-                        self.place_piece_outside()
-                        if self.has_piece_inside():
-                            # has to move from start
-                            self.get_piece_on_start().go_forward(next_dice)
+                    if piece_on_start == False:
+                        i = input("Move Piece from home to board? (y/n)")
+                        if i != "n":
+                            self.place_piece_outside()
+                            piece_on_start = self.get_piece_on_start()
+                            if self.has_piece_inside():
+                                # has to move from start
+                                # TODO: check for kick and own pieces!
+                                piece_on_start.go_forward(next_dice)
+                            else:
+                                self.move_freely(next_dice)
+                        else:
+                            self.move_freely(dice)
+                            self.move_freely(next_dice)
                     else:
-                        self.move_freely(dice)
-                        self.move_freely(next_dice)
+                        # has to move from start, TODO check for kick and own pieces
+                        piece_on_start.go_forward(next_dice)
+                else:
+                    self.move_freely(dice)
+                    self.move_freely(next_dice)
+
                 if next_dice == 6:
                     # repeat
                     self.turn()
@@ -142,15 +158,17 @@ class Player:
 
     def move_freely(self, dice):
         i = int(input("Select Piece: "))
-        if self.pieces[i-1].position != -1:
-            if self.is_field_free(self.pieces[i-1].position+dice+self.offset):
+        pos = self.pieces[i-1].position
+        newpos_real = self.calculate_realposition(self.pieces[i-1], dice)
+
+        # TODO: way to differentiate between the finishpoints
+        if pos != -1 and newpos_real != "Outside":
+            if self.is_field_free(newpos_real):
                 self.pieces[i-1].go_forward(dice)
-            else:
-                pass
-                # todo: Spieler auffordern andere Figur zu nehmen
-                # was ist wenn das nicht möglich ist..?
+                # Man kann sich nicht selber rausschlagen und muss eine andere Figur nehmen.
+                # TODO: was ist wenn das nicht möglich ist..?
         else:
-            print("Select a piece on the board!")
+            print("Cant move this piece")
             self.move_freely(dice)
 
     def roll_dice(self):
@@ -161,42 +179,53 @@ class Player:
     # check if field is free and kick other players if needed
     def is_field_free(self, realposition):
         free = True
+        # return true for realposition == finish
         for player in self.parent.players:
             if player.id != self.id:
                 for piece in player.pieces:
-                    if piece.position < 40 and piece.position != -1 and piece.position + player.offset == realposition:
-                        print("Kicking out Player", player.id)
+                    if piece.position < 40 and piece.position != -1 and self.calculate_realposition(piece, 0) == realposition:
+                        print("### kicking piece on position", realposition, " owner: player", player.id+1)
                         piece.position = -1
             else:
                 for piece in player.pieces:
-                    if piece.position + player.offset == realposition or realposition - player.offset > 43:
+                    # TODO: how to calculate the finish for each player, check if realposition is above finish, maybe not in here
+                    # TODO: "Finish" == "Finish" is always true, no way to differentiate the finish fields
+                    if self.calculate_realposition(piece, 0) == realposition:# and realposition is inside finish
                         print("Field is not free or outside the board")
                         free = False
         return free
 
+    def calculate_realposition(self, piece, dice):
+        position = piece.position + dice
+        boardsize = self.parent.number_of_players*10
+
+        # Check for start/finish
+        if position >= boardsize and position <= boardsize+3:
+            return "Finish"
+        if position == -1:
+            return "Start"
+        if position > boardsize+3:
+            return "Outside"
+        
+        # offset-calculation-wrap-around-magic
+        if piece.parent.offset != 0:
+            if position >= (boardsize-piece.parent.offset):
+                return position - (boardsize-piece.parent.offset)
+            else:
+                return position + piece.parent.offset
+        else:
+            return position
+
 
 class Piece:
     def __init__(self, parent):
-        self.position = -1
         self.parent = parent
+        self.position = -1
 
     def go_forward(self, distance):
-        new_position = self.position + distance
-        print("Moving piece from", self.position, "to", new_position)
-        self.position = new_position
-        print("Real new position:", self.get_realposition())
-        
-    
-    # get the real position of the piece on the board! implementing wrap around
-    def get_realposition(self):
-        boardsize = self.parent.parent.number_of_players*10
-        if self.parent.offset != 0:
-            if self.position >= (boardsize-self.parent.offset):
-                return self.position - (boardsize-self.parent.offset)
-            else:
-                return self.position + self.parent.offset
-        else:
-            return self.position
+        print("Moving piece from", self.position, "to", self.position + distance)
+        self.position = self.position + distance
+        print("Real new position:", self.parent.calculate_realposition(self, 0))
 
 
 if __name__ == "__main__":
