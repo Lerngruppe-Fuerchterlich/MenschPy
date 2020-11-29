@@ -6,9 +6,16 @@ import time
 import colorama
 colorama.init()
 
-# TODO: Ziel abfrage überarbeiten
-# TODO: class diagram
+# Was funktioniert:
+# - Spielfeld Loop
+# - Beliebige Spieleranzahl
+# - (simple) Spielfeldanzeige
+# - Rausschmeissen
+# - 3 Versuche, wenn noch keine Figur im Spiel ist
 
+# Einschränkungen:
+# - Zielsortierung ist egal
+# - Wenn man freimachen muss, kann es zu zwei Figuren auf einem Feld kommen (siehe TODO)
 
 class MenschAergereDichNicht:
     # Class attribute
@@ -114,8 +121,10 @@ class Player:
         return won
 
     def turn(self):
-        print("Player", self.id+1, "Positions:", self.get_piece_positions())
-        print("Player", self.id+1, "REAL Positions:", self.get_piece_positions_offset())
+        # Positions
+        #print("Player", self.id+1, "Positions:", self.get_piece_positions())
+        # Real Positions
+        print("Player", self.id+1, "Positions:", self.get_piece_positions_offset())
 
         piece_on_start = self.get_piece_on_start()
         if self.has_piece_outside():
@@ -193,7 +202,7 @@ class Player:
             if player.id != self.id:
                 for piece in player.pieces:
                     if piece.position < self.parent.game_size and piece.position != -1 and self.calculate_realposition(piece, 0) == realposition:
-                        print("### kicking piece on position", realposition, " owner: player", player.id+1)
+                        print("kicking piece on position", realposition, " owner: player", player.id+1)
                         piece.position = -1
             else:
                 for piece in player.pieces:
@@ -259,10 +268,13 @@ class Gamefield:
                 for piece_index, piece in enumerate(player.pieces):
                     if i == player.calculate_realposition(piece, 0):
                         print(self.color[player_index] + str(piece_index+1) + self.color_reset, end='')
+            for player_index, player in enumerate(players):
+                if i == player.offset:
+                    print(self.color[player_index] + "  (Start Player " + str(player_index+1) + ")" + self.color_reset, end='')
             print("")
 
 
 if __name__ == "__main__":
     # Start the game
-    game = MenschAergereDichNicht(4)
+    game = MenschAergereDichNicht(2)
     print(game.version)
