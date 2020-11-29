@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Diagram>
+  <ID>Python</ID>
+  <OriginalElement>#D:/Daten/Dokumente/FH Sankt Augustin MASTER/Semester 2/Embedded Systems/Mensch ärgere dich nicht - Python/mensch.py</OriginalElement>
+  <nodes>
+    <node x="0.0" y="474.0">mensch.Gamefield</node>
+    <node x="297.0" y="0.0">mensch.MenschAergereDichNicht</node>
+    <node x="0.0" y="0.0">mensch.Player</node>
+    <node x="205.0" y="474.0">mensch.Piece</node>
+  </nodes>
+  <notes />
+  <edges />
+  <settings layout="Hierarchic Group" zoom="1.0" x="453.99999999999994" y="323.5" />
+  <SelectedNodes />
+  <Categories>
+    <Category>Methods</Category>
+    <Category>Inner Classes</Category>
+    <Category>Fields</Category>
+  </Categories>
+</Diagram>
+
