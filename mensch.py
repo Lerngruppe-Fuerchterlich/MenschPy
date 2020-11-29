@@ -11,7 +11,7 @@ colorama.init()
 # - Beliebige Spieleranzahl
 # - (simple) Spielfeldanzeige
 # - Rausschmeissen
-# - 3 Versuche, wenn noch keine Figur im Spiel ist
+# - 3 Versuche, wenn keine Figur auf dem Feld ist
 
 # Einschränkungen:
 # - Zielsortierung ist egal
@@ -31,6 +31,7 @@ class MenschAergereDichNicht:
         
         print("starting...", self.number_of_players, "Players")
 
+        # init gamefield display
         self.gamefield = Gamefield(self)
 
         for p in range(self.number_of_players):
@@ -38,10 +39,11 @@ class MenschAergereDichNicht:
 
         while True:
             for player in self.players:
+                # show gamefield before every turn
+                self.gamefield.show(self.players)
+
                 print("")
                 print("Players", player.id+1, "Turn")
-
-                self.gamefield.show(self.players)
 
                 player.turn()
 
@@ -59,15 +61,14 @@ class Player:
         self.pieces = []
         self.id = id
 
-        for x in range(0,4):
+        for _ in range(0,4):
             self.pieces.append(Piece(self))
 
     # true if one (or more) pieces is on the board
     def has_piece_outside(self):
         result = False
         for piece in self.pieces:
-            # TODO: add check if piece is in the finish and cant move (to grant the player 3 dice rolls)
-            if piece.position != -1:
+            if piece.position != -1 and piece.position < self.parent.game_size:
                 result = True
         return result
     
@@ -79,22 +80,13 @@ class Player:
                 result = True
         return result
 
-    # returns positions of all 4 pieces (with offset for comparison)
+    # returns REAL (gamefield) positions of all 4 pieces (with offset)
     def get_piece_positions_offset(self):
         positions = []
         for piece in self.pieces:
             # old:
             # positions.append(piece.get_realposition())
             positions.append(self.calculate_realposition(piece, 0))
-        return positions
-
-    def get_piece_positions(self):
-        positions = []
-        for piece in self.pieces:
-            if piece.position == -1:
-                positions.append("Start")
-            else:
-                positions.append(piece.position)
         return positions
 
     # move piece from start area to board
@@ -175,11 +167,9 @@ class Player:
 
     def move_freely(self, dice):
         i = int(input("Select Piece: "))
-        #pos = self.pieces[i-1].position
         pos_real = self.calculate_realposition(self.pieces[i-1], 0)
         newpos_real = self.calculate_realposition(self.pieces[i-1], dice)
 
-        # TODO: way to differentiate between the finishpoints
         if pos_real != "Start" and newpos_real != "Outside" and pos_real != "Finish":
             if self.is_field_free(newpos_real):
                 self.pieces[i-1].go_forward(dice)
@@ -215,13 +205,19 @@ class Player:
         position = piece.position + dice
         boardsize = self.parent.game_size
 
+        # Preparation for finish sorting
         # Check for start/finish
-        if boardsize <= position <= boardsize+3:
+        #if boardsize <= position <= boardsize+3:
+        #    return "Finish"
+        #if position > boardsize+3:
+        #    return "Outside"
+
+        # atm no check in finish
+        if boardsize <= position:
             return "Finish"
         if position == -1:
             return "Start"
-        if position > boardsize+3:
-            return "Outside"
+
 
         # offset-calculation-wrap-around-magic
         if piece.parent.offset != 0:
@@ -270,7 +266,7 @@ class Gamefield:
                         print(self.color[player_index] + str(piece_index+1) + self.color_reset, end='')
             for player_index, player in enumerate(players):
                 if i == player.offset:
-                    print(self.color[player_index] + "  (Start Player " + str(player_index+1) + ")" + self.color_reset, end='')
+                    print(self.color[player_index] + "  (Start/Finish Player " + str(player_index+1) + ")" + self.color_reset, end='')
             print("")
 
 
