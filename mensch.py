@@ -3,6 +3,8 @@
 
 import random
 import time
+import colorama
+colorama.init()
 
 # TODO: Ziel abfrage überarbeiten
 # TODO: class diagram
@@ -16,10 +18,13 @@ class MenschAergereDichNicht:
     def __init__(self, number_of_players):
         # instance attribute
         self.number_of_players = number_of_players
+        self.game_size = number_of_players * 10
         self.players = []
         self.game_over = False
-
+        
         print("starting...", self.number_of_players, "Players")
+
+        self.gamefield = Gamefield(self)
 
         for p in range(self.number_of_players):
             self.players.append(Player(self, p*10, p))
@@ -28,6 +33,8 @@ class MenschAergereDichNicht:
             for player in self.players:
                 print("")
                 print("Players", player.id+1, "Turn")
+
+                self.gamefield.show(self.players)
 
                 player.turn()
 
@@ -41,6 +48,7 @@ class Player:
     def __init__(self, parent, offset, id):
         self.parent = parent
         self.offset = offset
+        self.name = "Player " + str(id)
         self.pieces = []
         self.id = id
 
@@ -101,7 +109,7 @@ class Player:
     def has_won(self):
         won = True
         for piece in self.pieces:
-            if piece.position < 40:
+            if piece.position < self.parent.game_size:
                 won = False
         return won
 
@@ -117,7 +125,7 @@ class Player:
                 # bonus roll
                 next_dice = self.roll_dice()
                 if self.has_piece_inside():
-                    if piece_on_start == False:
+                    if not piece_on_start:
                         i = input("Move Piece from home to board? (y/n)")
                         if i != "n":
                             self.place_piece_outside()
@@ -158,11 +166,12 @@ class Player:
 
     def move_freely(self, dice):
         i = int(input("Select Piece: "))
-        pos = self.pieces[i-1].position
+        #pos = self.pieces[i-1].position
+        pos_real = self.calculate_realposition(self.pieces[i-1], 0)
         newpos_real = self.calculate_realposition(self.pieces[i-1], dice)
 
         # TODO: way to differentiate between the finishpoints
-        if pos != -1 and newpos_real != "Outside":
+        if pos_real != "Start" and newpos_real != "Outside" and pos_real != "Finish":
             if self.is_field_free(newpos_real):
                 self.pieces[i-1].go_forward(dice)
                 # Man kann sich nicht selber rausschlagen und muss eine andere Figur nehmen.
@@ -183,30 +192,28 @@ class Player:
         for player in self.parent.players:
             if player.id != self.id:
                 for piece in player.pieces:
-                    if piece.position < 40 and piece.position != -1 and self.calculate_realposition(piece, 0) == realposition:
+                    if piece.position < self.parent.game_size and piece.position != -1 and self.calculate_realposition(piece, 0) == realposition:
                         print("### kicking piece on position", realposition, " owner: player", player.id+1)
                         piece.position = -1
             else:
                 for piece in player.pieces:
-                    # TODO: how to calculate the finish for each player, check if realposition is above finish, maybe not in here
-                    # TODO: "Finish" == "Finish" is always true, no way to differentiate the finish fields
-                    if self.calculate_realposition(piece, 0) == realposition:# and realposition is inside finish
+                    if self.calculate_realposition(piece, 0) == realposition and self.calculate_realposition(piece, 0) != "Finish":# and realposition is inside finish
                         print("Field is not free or outside the board")
                         free = False
         return free
 
     def calculate_realposition(self, piece, dice):
         position = piece.position + dice
-        boardsize = self.parent.number_of_players*10
+        boardsize = self.parent.game_size
 
         # Check for start/finish
-        if position >= boardsize and position <= boardsize+3:
+        if boardsize <= position <= boardsize+3:
             return "Finish"
         if position == -1:
             return "Start"
         if position > boardsize+3:
             return "Outside"
-        
+
         # offset-calculation-wrap-around-magic
         if piece.parent.offset != 0:
             if position >= (boardsize-piece.parent.offset):
@@ -215,6 +222,9 @@ class Player:
                 return position + piece.parent.offset
         else:
             return position
+
+    def set_name(self, name):
+        self.name = name
 
 
 class Piece:
@@ -226,6 +236,30 @@ class Piece:
         print("Moving piece from", self.position, "to", self.position + distance)
         self.position = self.position + distance
         print("Real new position:", self.parent.calculate_realposition(self, 0))
+
+
+class Gamefield:
+    def __init__(self, parent):
+        self.parent = parent
+        self.size = self.parent.game_size
+        self.color = [colorama.Fore.RED, colorama.Fore.GREEN, colorama.Fore.YELLOW, colorama.Fore.BLUE, colorama.Fore.MAGENTA, colorama.Fore.CYAN]
+        self.color_reset = colorama.Fore.RESET
+    
+    def show(self, players):
+        print ("Finish: ", end='')
+        for player_index, player in enumerate(players):
+            for piece_index, piece in enumerate(player.pieces):
+                if "Finish" == player.calculate_realposition(piece, 0):
+                    print(self.color[player_index] + str(piece_index+1) + self.color_reset, end='')
+        print("")
+
+        for i in reversed(range(0, self.size)):
+            print (str(i) + ": ", end='')
+            for player_index, player in enumerate(players):
+                for piece_index, piece in enumerate(player.pieces):
+                    if i == player.calculate_realposition(piece, 0):
+                        print(self.color[player_index] + str(piece_index+1) + self.color_reset, end='')
+            print("")
 
 
 if __name__ == "__main__":
