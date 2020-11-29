@@ -37,6 +37,7 @@ class MenschAergereDichNicht:
         for p in range(self.number_of_players):
             self.players.append(Player(self, p*10, p))
 
+        # Main Game Loop
         while True:
             for player in self.players:
                 # show gamefield before every turn
@@ -61,6 +62,7 @@ class Player:
         self.pieces = []
         self.id = id
 
+        # Every player owns 4 pieces
         for _ in range(0,4):
             self.pieces.append(Piece(self))
 
@@ -86,7 +88,7 @@ class Player:
         for piece in self.pieces:
             # old:
             # positions.append(piece.get_realposition())
-            positions.append(self.calculate_realposition(piece, 0))
+            positions.append(self.calculate_realposition(piece))
         return positions
 
     # move piece from start area to board
@@ -99,12 +101,14 @@ class Player:
                     return
         print("ERROR: player has no piece in start area")
 
+    # Returns the piece object on starting point of current player
     def get_piece_on_start(self):
         for piece in self.pieces:
             if piece.position == 0:
                 return piece
         return False
 
+    # true if all pieces are in finish, expansion possible
     def has_won(self):
         won = True
         for piece in self.pieces:
@@ -112,6 +116,7 @@ class Player:
                 won = False
         return won
 
+    # main function, gets called every turn
     def turn(self):
         # Positions
         #print("Player", self.id+1, "Positions:", self.get_piece_positions())
@@ -119,16 +124,22 @@ class Player:
         print("Player", self.id+1, "Positions:", self.get_piece_positions_offset())
 
         piece_on_start = self.get_piece_on_start()
+
+        # is the player allowed to throw the dice 3 times?
         if self.has_piece_outside():
             # normal game
             dice = self.roll_dice()
+
+            # Special Cases when a 6 is thrown:
             if dice == 6:
                 # bonus roll
                 next_dice = self.roll_dice()
+
                 if self.has_piece_inside():
                     if not piece_on_start:
                         i = input("Move Piece from home to board? (y/n)")
                         if i != "n":
+                            # the first dice (6) will get used to place the piece
                             self.place_piece_outside()
                             piece_on_start = self.get_piece_on_start()
                             if self.has_piece_inside():
@@ -138,47 +149,55 @@ class Player:
                             else:
                                 self.move_freely(next_dice)
                         else:
+                            # the first dice (6) can be used to walk
                             self.move_freely(dice)
                             self.move_freely(next_dice)
                     else:
                         # has to move from start, TODO check for kick and own pieces
                         piece_on_start.go_forward(next_dice)
                 else:
+                    # player cant use the dice to get out of start anyways
                     self.move_freely(dice)
                     self.move_freely(next_dice)
 
                 if next_dice == 6:
-                    # repeat
+                    # repeat if the next throw was another 6
                     self.turn()
             else:
+                # normal gameplay
                 self.move_freely(dice)
         else:
-            # special case: roll 3 times
+            # roll 3 times to get out of start
             for i in range(0, 3):
                 print("Roll", i+1)
                 dice = self.roll_dice()
                 if dice == 6:
                     next_dice = self.roll_dice()
                     self.place_piece_outside()
+                    # TODO: check for kick and own pieces!
                     self.get_piece_on_start().go_forward(next_dice)
                     if next_dice == 6:
                         self.turn()
                     break
 
+    # player can (freely) select which piece to move (i.e. doesnt need to move from start)
     def move_freely(self, dice):
         i = int(input("Select Piece: "))
-        pos_real = self.calculate_realposition(self.pieces[i-1], 0)
+        pos_real = self.calculate_realposition(self.pieces[i-1])
         newpos_real = self.calculate_realposition(self.pieces[i-1], dice)
 
-        if pos_real != "Start" and newpos_real != "Outside" and pos_real != "Finish":
+        if pos_real != "Start" and pos_real != "Finish" and newpos_real != "Outside" :
             if self.is_field_free(newpos_real):
                 self.pieces[i-1].go_forward(dice)
+            else:
                 # Man kann sich nicht selber rausschlagen und muss eine andere Figur nehmen.
                 # TODO: was ist wenn das nicht möglich ist..?
+                pass
         else:
             print("Cant move this piece")
             self.move_freely(dice)
 
+    # Returns number between 1 and 6
     def roll_dice(self):
         dice = random.randint(1, 6)
         print("Rolling dice:", dice)
@@ -187,25 +206,26 @@ class Player:
     # check if field is free and kick other players if needed
     def is_field_free(self, realposition):
         free = True
-        # return true for realposition == finish
+
         for player in self.parent.players:
-            if player.id != self.id:
+            if player.id != self.id: # check for other player pieces
                 for piece in player.pieces:
-                    if piece.position < self.parent.game_size and piece.position != -1 and self.calculate_realposition(piece, 0) == realposition:
+                    if piece.position < self.parent.game_size and piece.position != -1 and self.calculate_realposition(piece) == realposition:
                         print("kicking piece on position", realposition, " owner: player", player.id+1)
                         piece.position = -1
-            else:
+            else: # check for own pieces
                 for piece in player.pieces:
-                    if self.calculate_realposition(piece, 0) == realposition and self.calculate_realposition(piece, 0) != "Finish":# and realposition is inside finish
+                    if self.calculate_realposition(piece) == realposition and self.calculate_realposition(piece) != "Finish": # and realposition is inside finish
                         print("Field is not free or outside the board")
                         free = False
         return free
 
-    def calculate_realposition(self, piece, dice):
+    # returns the real positon of a piece. use dice to check future positions, leave blank to use default 0 (current position)
+    def calculate_realposition(self, piece, dice=0):
         position = piece.position + dice
         boardsize = self.parent.game_size
 
-        # Preparation for finish sorting
+        # Preparation for finish-sorting
         # Check for start/finish
         #if boardsize <= position <= boardsize+3:
         #    return "Finish"
@@ -219,7 +239,7 @@ class Player:
             return "Start"
 
 
-        # offset-calculation-wrap-around-magic
+        # offset-calculation-wrap-around-magic - do not touch
         if piece.parent.offset != 0:
             if position >= (boardsize-piece.parent.offset):
                 return position - (boardsize-piece.parent.offset)
@@ -228,6 +248,7 @@ class Player:
         else:
             return position
 
+    # preparation for custom player names
     def set_name(self, name):
         self.name = name
 
@@ -237,40 +258,55 @@ class Piece:
         self.parent = parent
         self.position = -1
 
+    # move piece, do not call directly, use player-functions as wrapper to handle kicking etc
     def go_forward(self, distance):
         print("Moving piece from", self.position, "to", self.position + distance)
         self.position = self.position + distance
-        print("Real new position:", self.parent.calculate_realposition(self, 0))
+        print("Real new position:", self.parent.calculate_realposition(self))
 
 
 class Gamefield:
     def __init__(self, parent):
         self.parent = parent
         self.size = self.parent.game_size
-        self.color = [colorama.Fore.RED, colorama.Fore.GREEN, colorama.Fore.YELLOW, colorama.Fore.BLUE, colorama.Fore.MAGENTA, colorama.Fore.CYAN]
-        self.color_reset = colorama.Fore.RESET
+        self.color = [colorama.Fore.RED, colorama.Fore.GREEN, colorama.Fore.YELLOW, colorama.Fore.BLUE, colorama.Fore.MAGENTA, colorama.Fore.CYAN, colorama.Back.RED, colorama.Back.GREEN, colorama.Back.YELLOW, colorama.Back.BLUE, colorama.Back.MAGENTA, colorama.Back.CYAN, colorama.Back.WHITE]
+        self.color_reset = colorama.Fore.RESET + colorama.Back.RESET
     
+    # Output a simple board
     def show(self, players):
+        # check for pieces in finish
         print ("Finish: ", end='')
         for player_index, player in enumerate(players):
             for piece_index, piece in enumerate(player.pieces):
-                if "Finish" == player.calculate_realposition(piece, 0):
+                if "Finish" == player.calculate_realposition(piece):
                     print(self.color[player_index] + str(piece_index+1) + self.color_reset, end='')
+        # newline
         print("")
 
+        # show board from end to start (descending)
         for i in reversed(range(0, self.size)):
+            # add space for single digits
+            if i < 10:
+                print(" ", end='')
+
             print (str(i) + ": ", end='')
+
+            # show pieces in player colors
             for player_index, player in enumerate(players):
                 for piece_index, piece in enumerate(player.pieces):
-                    if i == player.calculate_realposition(piece, 0):
+                    if i == player.calculate_realposition(piece):
                         print(self.color[player_index] + str(piece_index+1) + self.color_reset, end='')
+
+            # show start/finish locations in player colors
             for player_index, player in enumerate(players):
                 if i == player.offset:
                     print(self.color[player_index] + "  (Start/Finish Player " + str(player_index+1) + ")" + self.color_reset, end='')
+
+            #newline
             print("")
 
 
 if __name__ == "__main__":
     # Start the game
-    game = MenschAergereDichNicht(2)
-    print(game.version)
+    game = MenschAergereDichNicht(3)
+    print("Version", game.version)
