@@ -1,5 +1,5 @@
 # Mensch Ärgere Dich Nicht!
-# created on 17.11.2020 by JPW
+# created on 17.11.2020 by Lerngruppe-Fuerchterlich
 
 import random
 import time
